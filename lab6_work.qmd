@@ -57,11 +57,6 @@ mt_samples %>%
   top_n(20,n)
 
 
-#mt_samples %>%
- # count('words', sort = TRUE)
-
-
-
 #visualize
 mt_samples %>%
   unnest_tokens(words, transcription) %>%
@@ -70,6 +65,8 @@ mt_samples %>%
   ggplot(aes(n,words)) +
   geom_col()
 ```
+
+The top 20 words are all stop words, which is not surprising as they are the most common words. The and and are the most common by far. We do see however patient and right are in the top 20, these are most likely actually important to the data set.
 
 ### **Question 3**
 
@@ -90,6 +87,8 @@ mt_samples %>%
   geom_col()
 ```
 
+After removing the stop words we have much better idea of what the text is about. Here we see patient is the most common word. Procedure, left, history are also very common, this is as expected.
+
 ### **Question 4**
 
 repeat question 2, but this time tokenize into bi-grams. how does the result change if you look at tri-grams?
@@ -104,18 +103,28 @@ mt_samples %>%
   unnest_ngrams(ngram3, transcription, n = 3) %>%
   count(ngram3, sort=TRUE) %>%
   top_n(20,n)
+
+
+
 ```
+
+The bi-gram does not contain as many useful words as the tri-gram. By including one more word in the tri-gram we are able to get more information. For example common phrases in the bi-gram are very generic in the, to the, on the etc. While in tri-gram we have the operating room, prepped and draped, at this time etc. This is much more informative as we can tell just from the tri-gram that this data comes from a medical text involving procedures and prep.
 
 ### **Question 5**
 
 Using the results you got from questions 4. Pick a word and count the words that appears after and before it.
 
 ```{r}
+library(dplyr)
 library(tidyr)
-mt_samples %>%
-  unnest_ngrams(ngramb, transcription, n = 2) %>%
-  separate(ngramb, into=c("word1","word2"), sep = " ")  %>%
-  select(word1, word2)
+result <- mt_samples %>%
+  unnest_tokens(ngram, transcription, token = "ngrams", n = 2) %>%
+  filter(ngram %in% c("operating", "operating room")) %>%
+  separate(ngram, into = c("before", "after"), sep = " ")
+word_counts <- result %>%
+  group_by(before, after) %>%
+  tally(sort = TRUE)
+print(word_counts)
 ```
 
 ### **Question 6**
@@ -123,13 +132,27 @@ mt_samples %>%
 Which words are most used in each of the specialties. you can use `group_by()` and `top_n()` from `dplyr` to have the calculations be done within each specialty. Remember to remove stopwords. How about the most 5 used words?
 
 ```{r}
-# grouping does the same medical specialty many times
-mt_samples %>%
+
+top_word_by_specialty <- mt_samples %>%
   unnest_tokens(words, transcription) %>%
+  group_by(medical_specialty, words) %>%
+  anti_join(stop_words, by=c("words" = "word")) %>%
+  count(sort = TRUE) %>%
   group_by(medical_specialty) %>%
-  count(words) %>%
-  top_n(20,n)
+  top_n(1, n) 
+print(top_word_by_specialty)
+
+top_words_by_specialty <- mt_samples %>%
+  unnest_tokens(words, transcription) %>%
+  group_by(medical_specialty, words) %>%
+  anti_join(stop_words, by=c("words" = "word")) %>%
+  count(sort = TRUE) %>%
+  group_by(medical_specialty) %>%
+  top_n(5, n)  
+print(top_words_by_specialty)
 ```
+
+Patient is one of the top 5 words across all specialties and the #1 word for many of the specialties. Foot is the most common word for Podiatry, pain is most common for Chiropractic, eye for Ophthalmology. These makes sense as they are related to their respective specialties.
 
 ### **Question 7 - extra**
 
